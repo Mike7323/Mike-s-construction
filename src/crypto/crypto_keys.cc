@@ -901,6 +901,7 @@ v8::Local<v8::Function> KeyObjectHandle::Initialize(Environment* env) {
     templ = NewFunctionTemplate(isolate, New);
     templ->InstanceTemplate()->SetInternalFieldCount(
         KeyObjectHandle::kInternalFieldCount);
+    templ->Inherit(BaseObject::GetConstructorTemplate(env));
 
     SetProtoMethod(isolate, templ, "init", Init);
     SetProtoMethodNoSideEffect(
@@ -1341,6 +1342,7 @@ void NativeKeyObject::CreateNativeKeyObjectClass(
       NewFunctionTemplate(isolate, NativeKeyObject::New);
   t->InstanceTemplate()->SetInternalFieldCount(
       KeyObjectHandle::kInternalFieldCount);
+  t->Inherit(BaseObject::GetConstructorTemplate(env));
 
   Local<Value> ctor;
   if (!t->GetFunction(env->context()).ToLocal(&ctor))

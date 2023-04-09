@@ -41,7 +41,9 @@ void Hmac::Initialize(Environment* env, Local<Object> target) {
   Isolate* isolate = env->isolate();
   Local<FunctionTemplate> t = NewFunctionTemplate(isolate, New);
 
-  t->InstanceTemplate()->SetInternalFieldCount(Hmac::kInternalFieldCount);
+  t->InstanceTemplate()->SetInternalFieldCount(
+      Hmac::kInternalFieldCount);
+  t->Inherit(BaseObject::GetConstructorTemplate(env));
 
   SetProtoMethod(isolate, t, "init", HmacInit);
   SetProtoMethod(isolate, t, "update", HmacUpdate);

@@ -1,25 +1,20 @@
 #include "node_shadow_realm.h"
 #include "env-inl.h"
-#include "node_errors.h"
 
 namespace node {
 namespace shadow_realm {
 using v8::Context;
+using v8::EscapableHandleScope;
 using v8::HandleScope;
 using v8::Local;
 using v8::MaybeLocal;
 using v8::Value;
-
-using TryCatchScope = node::errors::TryCatchScope;
 
 // static
 ShadowRealm* ShadowRealm::New(Environment* env) {
   ShadowRealm* realm = new ShadowRealm(env);
   env->AssignToContext(realm->context(), realm, ContextInfo(""));
 
-  // We do not expect the realm bootstrapping to throw any
-  // exceptions. If it does, exit the current Node.js instance.
-  TryCatchScope try_catch(env, TryCatchScope::CatchMode::kFatal);
   if (realm->RunBootstrapping().IsEmpty()) {
     delete realm;
     return nullptr;
@@ -46,7 +41,6 @@ void ShadowRealm::WeakCallback(const v8::WeakCallbackInfo<ShadowRealm>& data) {
 
 ShadowRealm::ShadowRealm(Environment* env)
     : Realm(env, NewContext(env->isolate()), kShadowRealm) {
-  env->TrackShadowRealm(this);
   context_.SetWeak(this, WeakCallback, v8::WeakCallbackType::kParameter);
   CreateProperties();
 }
@@ -55,15 +49,10 @@ ShadowRealm::~ShadowRealm() {
   while (HasCleanupHooks()) {
     RunCleanup();
   }
-  if (env_ != nullptr) {
-    env_->UntrackShadowRealm(this);
-  }
 }
 
-void ShadowRealm::OnEnvironmentDestruct() {
-  CHECK_NOT_NULL(env_);
-  env_ = nullptr;  // This means that the shadow realm has out-lived the
-                   // environment.
+void ShadowRealm::MemoryInfo(MemoryTracker* tracker) const {
+  Realm::MemoryInfo(tracker);
 }
 
 v8::Local<v8::Context> ShadowRealm::context() const {
@@ -102,19 +91,21 @@ PER_REALM_STRONG_PERSISTENT_VALUES(V)
 #undef V
 
 v8::MaybeLocal<v8::Value> ShadowRealm::BootstrapRealm() {
-  HandleScope scope(isolate_);
+  EscapableHandleScope scope(isolate_);
+  MaybeLocal<Value> result = v8::True(isolate_);
 
   // Skip "internal/bootstrap/node" as it installs node globals and per-isolate
-  // callbacks.
+  // callbacks like PrepareStackTraceCallback.
 
   if (!env_->no_browser_globals()) {
-    if (ExecuteBootstrapper("internal/bootstrap/web/exposed-wildcard")
-            .IsEmpty()) {
+    result = ExecuteBootstrapper("internal/bootstrap/web/exposed-wildcard");
+
+    if (result.IsEmpty()) {
       return MaybeLocal<Value>();
     }
   }
 
-  return v8::True(isolate_);
+  return result;
 }
 
 }  // namespace shadow_realm

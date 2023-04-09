@@ -254,6 +254,7 @@
       'src/permission/child_process_permission.h',
       'src/permission/fs_permission.h',
       'src/permission/permission.h',
+      'src/permission/permission_node.h',
       'src/permission/worker_permission.h',
       'src/pipe_wrap.h',
       'src/req_wrap.h',
@@ -969,10 +970,6 @@
         [ 'OS!="linux" or ossfuzz!="true"', {
           'type': 'none',
         }],
-        # Avoid excessive LTO
-        ['enable_lto=="true"', {
-          'ldflags': [ '-fno-lto' ],
-        }],
       ],
     }, # fuzz_env
     {
@@ -1075,10 +1072,6 @@
             'Ws2_32.lib',
           ],
         }],
-        # Avoid excessive LTO
-        ['enable_lto=="true"', {
-          'ldflags': [ '-fno-lto' ],
-        }],
       ],
     }, # cctest
 
@@ -1132,10 +1125,6 @@
             'Ws2_32.lib',
           ],
         }],
-        # Avoid excessive LTO
-        ['enable_lto=="true"', {
-          'ldflags': [ '-fno-lto' ],
-        }],
       ],
     }, # embedtest
 
@@ -1153,10 +1142,6 @@
           'sources': [
             'test/overlapped-checker/main_unix.c'
           ],
-        }],
-        # Avoid excessive LTO
-        ['enable_lto=="true"', {
-          'ldflags': [ '-fno-lto' ],
         }],
       ]
     }, # overlapped-checker
@@ -1213,10 +1198,6 @@
             'winmm.lib',
             'Ws2_32.lib',
           ],
-        }],
-        # Avoid excessive LTO
-        ['enable_lto=="true"', {
-          'ldflags': [ '-fno-lto' ],
         }],
       ],
     }, # node_mksnapshot

@@ -38,6 +38,12 @@ BaseObject::BaseObject(Environment* env, v8::Local<v8::Object> object)
   // while allowing to create a BaseObject in a vm context.
 }
 
+// static
+v8::Local<v8::FunctionTemplate> BaseObject::GetConstructorTemplate(
+    Environment* env) {
+  return BaseObject::GetConstructorTemplate(env->isolate_data());
+}
+
 void BaseObject::Detach() {
   CHECK_GT(pointer_data()->strong_ptr_count, 0);
   pointer_data()->is_detached = true;
@@ -70,23 +76,14 @@ Realm* BaseObject::realm() const {
   return realm_;
 }
 
-bool BaseObject::IsBaseObject(v8::Local<v8::Object> obj) {
-  if (obj->InternalFieldCount() < BaseObject::kInternalFieldCount) {
-    return false;
-  }
-  void* ptr =
-      obj->GetAlignedPointerFromInternalField(BaseObject::kEmbedderType);
-  return ptr == &kNodeEmbedderId;
-}
-
-void BaseObject::TagBaseObject(v8::Local<v8::Object> object) {
+void BaseObject::TagNodeObject(v8::Local<v8::Object> object) {
   DCHECK_GE(object->InternalFieldCount(), BaseObject::kInternalFieldCount);
   object->SetAlignedPointerInInternalField(BaseObject::kEmbedderType,
                                            &kNodeEmbedderId);
 }
 
 void BaseObject::SetInternalFields(v8::Local<v8::Object> object, void* slot) {
-  TagBaseObject(object);
+  TagNodeObject(object);
   object->SetAlignedPointerInInternalField(BaseObject::kSlot, slot);
 }
 

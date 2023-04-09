@@ -33,6 +33,7 @@ void Realm::MemoryInfo(MemoryTracker* tracker) const {
   PER_REALM_STRONG_PERSISTENT_VALUES(V)
 #undef V
 
+  tracker->TrackField("env", env_);
   tracker->TrackField("cleanup_queue", cleanup_queue_);
   tracker->TrackField("builtins_with_cache", builtins_with_cache);
   tracker->TrackField("builtins_without_cache", builtins_without_cache);
@@ -178,7 +179,7 @@ MaybeLocal<Value> Realm::RunBootstrapping() {
   CHECK(!has_run_bootstrapping_code());
 
   Local<Value> result;
-  if (!ExecuteBootstrapper("internal/bootstrap/realm").ToLocal(&result) ||
+  if (!ExecuteBootstrapper("internal/bootstrap/loaders").ToLocal(&result) ||
       !BootstrapRealm().ToLocal(&result)) {
     return MaybeLocal<Value>();
   }
@@ -300,10 +301,16 @@ PrincipalRealm::PrincipalRealm(Environment* env,
   }
 }
 
-MaybeLocal<Value> PrincipalRealm::BootstrapRealm() {
-  HandleScope scope(isolate_);
+void PrincipalRealm::MemoryInfo(MemoryTracker* tracker) const {
+  Realm::MemoryInfo(tracker);
+}
 
-  if (ExecuteBootstrapper("internal/bootstrap/node").IsEmpty()) {
+MaybeLocal<Value> PrincipalRealm::BootstrapRealm() {
+  EscapableHandleScope scope(isolate_);
+
+  MaybeLocal<Value> result = ExecuteBootstrapper("internal/bootstrap/node");
+
+  if (result.IsEmpty()) {
     return MaybeLocal<Value>();
   }
 
@@ -320,7 +327,9 @@ MaybeLocal<Value> PrincipalRealm::BootstrapRealm() {
   auto thread_switch_id =
       env_->is_main_thread() ? "internal/bootstrap/switches/is_main_thread"
                              : "internal/bootstrap/switches/is_not_main_thread";
-  if (ExecuteBootstrapper(thread_switch_id).IsEmpty()) {
+  result = ExecuteBootstrapper(thread_switch_id);
+
+  if (result.IsEmpty()) {
     return MaybeLocal<Value>();
   }
 
@@ -328,7 +337,9 @@ MaybeLocal<Value> PrincipalRealm::BootstrapRealm() {
       env_->owns_process_state()
           ? "internal/bootstrap/switches/does_own_process_state"
           : "internal/bootstrap/switches/does_not_own_process_state";
-  if (ExecuteBootstrapper(process_state_switch_id).IsEmpty()) {
+  result = ExecuteBootstrapper(process_state_switch_id);
+
+  if (result.IsEmpty()) {
     return MaybeLocal<Value>();
   }
 
@@ -340,7 +351,7 @@ MaybeLocal<Value> PrincipalRealm::BootstrapRealm() {
     return MaybeLocal<Value>();
   }
 
-  return v8::True(isolate_);
+  return scope.EscapeMaybe(result);
 }
 
 }  // namespace node
