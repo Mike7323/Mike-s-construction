@@ -66,6 +66,7 @@ void ECDH::Initialize(Environment* env, Local<Object> target) {
   Local<Context> context = env->context();
 
   Local<FunctionTemplate> t = NewFunctionTemplate(isolate, New);
+  t->Inherit(BaseObject::GetConstructorTemplate(env));
 
   t->InstanceTemplate()->SetInternalFieldCount(ECDH::kInternalFieldCount);
 

@@ -69,6 +69,7 @@ void DiffieHellman::Initialize(Environment* env, Local<Object> target) {
 
     t->InstanceTemplate()->SetInternalFieldCount(
         DiffieHellman::kInternalFieldCount);
+    t->Inherit(BaseObject::GetConstructorTemplate(env));
 
     SetProtoMethod(isolate, t, "generateKeys", GenerateKeys);
     SetProtoMethod(isolate, t, "computeSecret", ComputeSecret);

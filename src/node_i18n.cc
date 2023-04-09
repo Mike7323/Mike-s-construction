@@ -875,6 +875,7 @@ static void CreatePerIsolateProperties(IsolateData* isolate_data,
   // ConverterObject
   {
     Local<FunctionTemplate> t = NewFunctionTemplate(isolate, nullptr);
+    t->Inherit(BaseObject::GetConstructorTemplate(isolate_data));
     t->InstanceTemplate()->SetInternalFieldCount(
         ConverterObject::kInternalFieldCount);
     Local<String> converter_string =

@@ -1,7 +1,6 @@
 import { skipIfInspectorDisabled } from '../common/index.mjs';
 skipIfInspectorDisabled();
 
-// This must be in sequential because we check that the default port is 9229.
 import { path } from '../common/fixtures.mjs';
 import startCLI from '../common/debugger.js';
 

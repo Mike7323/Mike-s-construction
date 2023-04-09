@@ -870,12 +870,6 @@ behavior.
 <!-- YAML
 added: v0.1.90
 changes:
-  - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/46790
-    description: The default value for the autoSelectFamily option is now true.
-                 The `--enable-network-family-autoselection` CLI flag has been renamed
-                 to `--network-family-autoselection`. The old name is now an
-                 alias but it is discouraged.
   - version: v19.4.0
     pr-url: https://github.com/nodejs/node/pull/45777
     description: The default value for autoSelectFamily option can be changed
@@ -942,12 +936,12 @@ For TCP connections, available `options` are:
   option before timing out and trying the next address.
   Ignored if the `family` option is not `0` or if `localAddress` is set.
   Connection errors are not emitted if at least one connection succeeds.
-  If all connections attempts fails, a single `AggregateError` with all failed attempts is emitted.
-  **Default:** [`net.getDefaultAutoSelectFamily()`][]
+  **Default:** initially `false`, but it can be changed at runtime using [`net.setDefaultAutoSelectFamily(value)`][]
+  or via the command line option `--enable-network-family-autoselection`.
 * `autoSelectFamilyAttemptTimeout` {number}: The amount of time in milliseconds to wait
   for a connection attempt to finish before trying the next address when using the `autoSelectFamily` option.
   If set to a positive integer less than `10`, then the value `10` will be used instead.
-  **Default:** [`net.getDefaultAutoSelectFamilyAttemptTimeout()`][]
+  **Default:** initially `250`, but it can be changed at runtime using [`net.setDefaultAutoSelectFamilyAttemptTimeout(value)`][]
 
 For [IPC][] connections, available `options` are:
 
@@ -1635,8 +1629,6 @@ added: v19.4.0
 -->
 
 Gets the current default value of the `autoSelectFamily` option of [`socket.connect(options)`][].
-The initial default value is `true`, unless the command line option
-`--no-network-family-autoselection` is provided.
 
 * Returns: {boolean} The current default value of the `autoSelectFamily` option.
 
@@ -1657,7 +1649,6 @@ added: v19.8.0
 -->
 
 Gets the current default value of the `autoSelectFamilyAttemptTimeout` option of [`socket.connect(options)`][].
-The initial default value is `250`.
 
 * Returns: {number} The current default value of the `autoSelectFamilyAttemptTimeout` option.
 
@@ -1756,8 +1747,8 @@ net.isIPv6('fhqwhgads'); // returns false
 [`net.createConnection(path)`]: #netcreateconnectionpath-connectlistener
 [`net.createConnection(port, host)`]: #netcreateconnectionport-host-connectlistener
 [`net.createServer()`]: #netcreateserveroptions-connectionlistener
-[`net.getDefaultAutoSelectFamily()`]: #netgetdefaultautoselectfamily
-[`net.getDefaultAutoSelectFamilyAttemptTimeout()`]: #netgetdefaultautoselectfamilyattempttimeout
+[`net.setDefaultAutoSelectFamily(value)`]: #netsetdefaultautoselectfamilyvalue
+[`net.setDefaultAutoSelectFamilyAttemptTimeout(value)`]: #netsetdefaultautoselectfamilyattempttimeoutvalue
 [`new net.Socket(options)`]: #new-netsocketoptions
 [`readable.setEncoding()`]: stream.md#readablesetencodingencoding
 [`server.close()`]: #serverclosecallback

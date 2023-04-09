@@ -7,7 +7,7 @@
 #include <cassert>
 #include <vector>
 
-#include "zlib.h"
+#include "third_party/zlib/zlib.h"
 
 static Bytef buffer[256 * 1024] = {0};
 

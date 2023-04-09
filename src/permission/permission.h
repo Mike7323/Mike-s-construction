@@ -47,6 +47,8 @@ class Permission {
 
   // CLI Call
   void Apply(const std::string& deny, PermissionScope scope);
+  // Permission.Deny API
+  bool Deny(PermissionScope scope, const std::vector<std::string>& params);
   void EnablePermissions();
 
  private:

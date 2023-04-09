@@ -738,39 +738,28 @@ function looksLikeAVFileValue(value) {
   return typeof value === 'string' || isBuffer(value)
 }
 
-const emptyOptions = {};
 function toString(value, options) {
-  const settings = options || emptyOptions;
-  const includeImageAlt =
-    typeof settings.includeImageAlt === 'boolean'
-      ? settings.includeImageAlt
-      : true;
-  const includeHtml =
-    typeof settings.includeHtml === 'boolean' ? settings.includeHtml : true;
-  return one(value, includeImageAlt, includeHtml)
+  const includeImageAlt = (options || {}).includeImageAlt;
+  return one(
+    value,
+    typeof includeImageAlt === 'boolean' ? includeImageAlt : true
+  )
 }
-function one(value, includeImageAlt, includeHtml) {
-  if (node(value)) {
-    if ('value' in value) {
-      return value.type === 'html' && !includeHtml ? '' : value.value
-    }
-    if (includeImageAlt && 'alt' in value && value.alt) {
-      return value.alt
-    }
-    if ('children' in value) {
-      return all(value.children, includeImageAlt, includeHtml)
-    }
-  }
-  if (Array.isArray(value)) {
-    return all(value, includeImageAlt, includeHtml)
-  }
-  return ''
+function one(value, includeImageAlt) {
+  return (
+    (node(value) &&
+      (('value' in value && value.value) ||
+        (includeImageAlt && 'alt' in value && value.alt) ||
+        ('children' in value && all(value.children, includeImageAlt)))) ||
+    (Array.isArray(value) && all(value, includeImageAlt)) ||
+    ''
+  )
 }
-function all(values, includeImageAlt, includeHtml) {
+function all(values, includeImageAlt) {
   const result = [];
   let index = -1;
   while (++index < values.length) {
-    result[index] = one(values[index], includeImageAlt, includeHtml);
+    result[index] = one(values[index], includeImageAlt);
   }
   return result.join('')
 }
@@ -9838,7 +9827,7 @@ function tokenizePotentialGfmFootnoteCall(effects, ok, nok) {
         end: self.now()
       })
     );
-    if (id.codePointAt(0) !== 94 || !defined.includes(id.slice(1))) {
+    if (id.charCodeAt(0) !== 94 || !defined.includes(id.slice(1))) {
       return nok(code)
     }
     effects.enter('gfmFootnoteCallLabelMarker');
@@ -9926,32 +9915,24 @@ function tokenizeGfmFootnoteCall(effects, ok, nok) {
     return callData
   }
   function callData(code) {
-    if (
-      size > 999 ||
-      (code === 93 && !data) ||
-      code === null ||
-      code === 91 ||
-      markdownLineEndingOrSpace(code)
-    ) {
+    let token;
+    if (code === null || code === 91 || size++ > 999) {
       return nok(code)
     }
     if (code === 93) {
-      effects.exit('chunkString');
-      const token = effects.exit('gfmFootnoteCallString');
-      if (!defined.includes(normalizeIdentifier(self.sliceSerialize(token)))) {
+      if (!data) {
         return nok(code)
       }
-      effects.enter('gfmFootnoteCallLabelMarker');
-      effects.consume(code);
-      effects.exit('gfmFootnoteCallLabelMarker');
-      effects.exit('gfmFootnoteCall');
-      return ok
+      effects.exit('chunkString');
+      token = effects.exit('gfmFootnoteCallString');
+      return defined.includes(normalizeIdentifier(self.sliceSerialize(token)))
+        ? end(code)
+        : nok(code)
     }
+    effects.consume(code);
     if (!markdownLineEndingOrSpace(code)) {
       data = true;
     }
-    size++;
-    effects.consume(code);
     return code === 92 ? callEscape : callData
   }
   function callEscape(code) {
@@ -9961,6 +9942,13 @@ function tokenizeGfmFootnoteCall(effects, ok, nok) {
       return callData
     }
     return callData(code)
+  }
+  function end(code) {
+    effects.enter('gfmFootnoteCallLabelMarker');
+    effects.consume(code);
+    effects.exit('gfmFootnoteCallLabelMarker');
+    effects.exit('gfmFootnoteCall');
+    return ok
   }
 }
 function tokenizeDefinitionStart(effects, ok, nok) {
@@ -9976,32 +9964,28 @@ function tokenizeDefinitionStart(effects, ok, nok) {
     effects.enter('gfmFootnoteDefinitionLabelMarker');
     effects.consume(code);
     effects.exit('gfmFootnoteDefinitionLabelMarker');
-    return labelAtMarker
+    return labelStart
   }
-  function labelAtMarker(code) {
+  function labelStart(code) {
     if (code === 94) {
       effects.enter('gfmFootnoteDefinitionMarker');
       effects.consume(code);
       effects.exit('gfmFootnoteDefinitionMarker');
       effects.enter('gfmFootnoteDefinitionLabelString');
-      effects.enter('chunkString').contentType = 'string';
-      return labelInside
+      return atBreak
     }
     return nok(code)
   }
-  function labelInside(code) {
-    if (
-      size > 999 ||
-      (code === 93 && !data) ||
-      code === null ||
-      code === 91 ||
-      markdownLineEndingOrSpace(code)
-    ) {
+  function atBreak(code) {
+    let token;
+    if (code === null || code === 91 || size > 999) {
       return nok(code)
     }
     if (code === 93) {
-      effects.exit('chunkString');
-      const token = effects.exit('gfmFootnoteDefinitionLabelString');
+      if (!data) {
+        return nok(code)
+      }
+      token = effects.exit('gfmFootnoteDefinitionLabelString');
       identifier = normalizeIdentifier(self.sliceSerialize(token));
       effects.enter('gfmFootnoteDefinitionLabelMarker');
       effects.consume(code);
@@ -10009,38 +9993,55 @@ function tokenizeDefinitionStart(effects, ok, nok) {
       effects.exit('gfmFootnoteDefinitionLabel');
       return labelAfter
     }
+    if (markdownLineEnding(code)) {
+      effects.enter('lineEnding');
+      effects.consume(code);
+      effects.exit('lineEnding');
+      size++;
+      return atBreak
+    }
+    effects.enter('chunkString').contentType = 'string';
+    return label(code)
+  }
+  function label(code) {
+    if (
+      code === null ||
+      markdownLineEnding(code) ||
+      code === 91 ||
+      code === 93 ||
+      size > 999
+    ) {
+      effects.exit('chunkString');
+      return atBreak(code)
+    }
     if (!markdownLineEndingOrSpace(code)) {
       data = true;
     }
     size++;
     effects.consume(code);
-    return code === 92 ? labelEscape : labelInside
+    return code === 92 ? labelEscape : label
   }
   function labelEscape(code) {
     if (code === 91 || code === 92 || code === 93) {
       effects.consume(code);
       size++;
-      return labelInside
+      return label
     }
-    return labelInside(code)
+    return label(code)
   }
   function labelAfter(code) {
     if (code === 58) {
       effects.enter('definitionMarker');
       effects.consume(code);
       effects.exit('definitionMarker');
-      if (!defined.includes(identifier)) {
-        defined.push(identifier);
-      }
-      return factorySpace(
-        effects,
-        whitespaceAfter,
-        'gfmFootnoteDefinitionWhitespace'
-      )
+      return factorySpace(effects, done, 'gfmFootnoteDefinitionWhitespace')
     }
     return nok(code)
   }
-  function whitespaceAfter(code) {
+  function done(code) {
+    if (!defined.includes(identifier)) {
+      defined.push(identifier);
+    }
     return ok(code)
   }
 }
@@ -10068,9 +10069,8 @@ function tokenizeIndent(effects, ok, nok) {
   }
 }
 
-function gfmStrikethrough(options) {
-  const options_ = options || {};
-  let single = options_.singleTilde;
+function gfmStrikethrough(options = {}) {
+  let single = options.singleTilde;
   const tokenizer = {
     tokenize: tokenizeStrikethrough,
     resolveAll: resolveAllStrikethrough
@@ -10124,15 +10124,16 @@ function gfmStrikethrough(options) {
               ['exit', events[open][1], context],
               ['enter', text, context]
             ];
-            const insideSpan = context.parser.constructs.insideSpan.null;
-            if (insideSpan) {
-              splice(
-                nextEvents,
-                nextEvents.length,
-                0,
-                resolveAll(insideSpan, events.slice(open + 1, index), context)
-              );
-            }
+            splice(
+              nextEvents,
+              nextEvents.length,
+              0,
+              resolveAll(
+                context.parser.constructs.insideSpan.null,
+                events.slice(open + 1, index),
+                context
+              )
+            );
             splice(nextEvents, nextEvents.length, 0, [
               ['exit', text, context],
               ['enter', events[index][1], context],
@@ -10672,30 +10673,29 @@ function tokenizeTasklistCheck(effects, ok, nok) {
       effects.consume(code);
       effects.exit('taskListCheckMarker');
       effects.exit('taskListCheck');
-      return after
-    }
-    return nok(code)
-  }
-  function after(code) {
-    if (markdownLineEnding(code)) {
-      return ok(code)
-    }
-    if (markdownSpace(code)) {
       return effects.check(
         {
           tokenize: spaceThenNonSpace
         },
         ok,
         nok
-      )(code)
+      )
     }
     return nok(code)
   }
 }
 function spaceThenNonSpace(effects, ok, nok) {
+  const self = this;
   return factorySpace(effects, after, 'whitespace')
   function after(code) {
-    return code === null ? nok(code) : ok(code)
+    const tail = self.events[self.events.length - 1];
+    return (
+      ((tail && tail[1].type === 'whitespace') ||
+        markdownLineEnding(code)) &&
+        code !== null
+        ? ok(code)
+        : nok(code)
+    )
   }
 }
 

@@ -13,6 +13,8 @@ namespace permission {
 class WorkerPermission final : public PermissionBase {
  public:
   void Apply(const std::string& deny, PermissionScope scope) override;
+  bool Deny(PermissionScope scope,
+            const std::vector<std::string>& params) override;
   bool is_granted(PermissionScope perm,
                   const std::string_view& param = "") override;
 
